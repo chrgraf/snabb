@@ -53,7 +53,7 @@ from_inet = {
       start_inet = {required=true},
       max_packets = {},
       max_packets_per_iter = {},
-      num_ips = {},
+      num_ips = {default=10},
       packet_size = {default=550},
       src_mac = {required=true},
       dst_mac = {required=true},
@@ -223,7 +223,7 @@ from_b4 = {
       br = {required=true},
       max_packets = {},
       max_packets_per_iter = {},
-      num_ips = {},
+      num_ips = {default=10},
       packet_size = {default=550},
       src_mac = {required=true},
       dst_mac = {required=true},
@@ -238,7 +238,7 @@ function from_b4:new(conf)
    local start_inet = ipv4:pton(conf.start_inet)
    local start_b4 = ipv6:pton(conf.start_b4)
    local start_port = 2^shift
-   packet_size = packet_size - ipv6_header_size
+   local packet_size = conf.packet_size - ipv6_header_size
    local max_packets_per_iter = conf.max_packets or conf.max_packets_per_iter
    local o = {
       br = ipv6:pton(conf.br),
