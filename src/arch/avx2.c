@@ -1,3 +1,4 @@
+#ifdef __AVX__
 /* Use of this source code is governed by the Apache 2.0 license; see COPYING.
  * Based on original SSE2 code by Tony Rogvall that is
  * copyright 2011 Teclo Networks AG. MIT licensed by Juho Snellman. */
@@ -82,3 +83,4 @@ uint16_t cksum_avx2(unsigned char *p, size_t n, uint16_t initial)
         sum = (sum & 0xFFFF) + (sum>>16);
     return (uint16_t)~sum;
 }
+#endif

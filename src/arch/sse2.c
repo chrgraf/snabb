@@ -1,8 +1,10 @@
+#ifdef sse_math
 /* Use of this source code is governed by the Apache 2.0 license; see COPYING.
  * Original code by Tony Rogvall that is
  * copyright 2011 Teclo Networks AG. MIT licensed by Juho Snellman. */
 
 /* IP checksum routine for SSE2. */
+
 
 #include <stdint.h>
 #include <arpa/inet.h>
@@ -92,3 +94,4 @@ uint16_t cksum_sse2(unsigned char *p, size_t n, uint16_t initial)
     sum = (sum & 0xFFFF) + (sum>>16);
   return (uint16_t)~sum;
 }
+#endif

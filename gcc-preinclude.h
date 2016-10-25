@@ -8,6 +8,8 @@
 
 #ifndef __ASSEMBLER__
 #ifdef __GLIBC__
+#ifdef __x86_64__
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
+#endif
 #endif
 #endif
