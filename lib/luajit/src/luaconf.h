@@ -1,6 +1,6 @@
 /*
 ** Configuration header.
-** Copyright (C) 2005-2015 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2016 Mike Pall. See Copyright Notice in luajit.h
 */
 
 #ifndef luaconf_h
@@ -37,7 +37,7 @@
 #endif
 #define LUA_LROOT	"/usr/local"
 #define LUA_LUADIR	"/lua/5.1/"
-#define LUA_LJDIR	"/luajit-2.1.0-beta1/"
+#define LUA_LJDIR	"/luajit-2.1.0-beta2/"
 
 #ifdef LUA_ROOT
 #define LUA_JROOT	LUA_ROOT
@@ -152,5 +152,11 @@
 #else
 #define luai_apicheck(L, o)	{ (void)L; }
 #endif
+
+#define lua_unimpl() \
+ do { extern int printf(const char*,...); printf("Unimplemented: %s\n", __FUNCTION__); __builtin_abort(); } while (0)
+
+#define lua_todo() \
+ do { extern int printf(const char*,...); printf("todo: %s\n", __FUNCTION__); } while (0)
 
 #endif

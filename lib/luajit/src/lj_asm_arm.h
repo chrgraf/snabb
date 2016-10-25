@@ -1,6 +1,6 @@
 /*
 ** ARM IR assembler (SSA IR -> machine code).
-** Copyright (C) 2005-2015 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2016 Mike Pall. See Copyright Notice in luajit.h
 */
 
 /* -- Register allocator extensions --------------------------------------- */
@@ -209,17 +209,17 @@ static uint32_t asm_fuseopm(ASMState *as, ARMIns ai, IRRef ref, RegSet allow)
 		    ir->o == IR_BSHR ? ARMSH_LSR :
 		    ir->o == IR_BSAR ? ARMSH_ASR : ARMSH_ROR;
       if (irref_isk(ir->op2)) {
-	return m | ARMF_SH(sh, (IR(ir->op2)->i & 31));
+	return ARMF_M(m) | ARMF_SH(sh, (IR(ir->op2)->i & 31));
       } else {
 	Reg s = ra_alloc1(as, ir->op2, rset_exclude(allow, m));
-	return m | ARMF_RSH(sh, s);
+	return ARMF_M(m) | ARMF_RSH(sh, s);
       }
     } else if (ir->o == IR_ADD && ir->op1 == ir->op2) {
       Reg m = ra_alloc1(as, ir->op1, allow);
-      return m | ARMF_SH(ARMSH_LSL, 1);
+      return ARMF_M(m) | ARMF_SH(ARMSH_LSL, 1);
     }
   }
-  return ra_allocref(as, ref, allow);
+  return ARMF_M(ra_allocref(as, ref, allow));
 }
 
 /* Fuse shifts into loads/stores. Only bother with BSHL 2 => lsl #2. */
@@ -426,7 +426,7 @@ static void asm_gencall(ASMState *as, const CCallInfo *ci, IRRef *args)
 static void asm_setupresult(ASMState *as, IRIns *ir, const CCallInfo *ci)
 {
   RegSet drop = RSET_SCRATCH;
-  int hiop = ((ir+1)->o == IR_HIOP);
+  int hiop = ((ir+1)->o == IR_HIOP && !irt_isnil((ir+1)->t));
   if (ra_hasreg(ir->r))
     rset_clear(drop, ir->r);  /* Dest reg handled below. */
   if (hiop && ra_hasreg((ir+1)->r))
@@ -520,8 +520,6 @@ static void asm_tobit(ASMState *as, IRIns *ir)
   emit_dn(as, ARMI_VMOV_R_S, dest, (tmp & 15));
   emit_dnm(as, ARMI_VADD_D, (tmp & 15), (left & 15), (right & 15));
 }
-#else
-#define asm_tobit(as, ir)	lua_assert(0)
 #endif
 
 static void asm_conv(ASMState *as, IRIns *ir)
@@ -911,7 +909,6 @@ static void asm_hrefk(ASMState *as, IRIns *ir)
 
 static void asm_uref(ASMState *as, IRIns *ir)
 {
-  /* NYI: Check that UREFO is still open and not aliasing a slot. */
   Reg dest = ra_dest(as, ir, RSET_GPR);
   if (irref_isk(ir->op1)) {
     GCfunc *fn = ir_kfunc(IR(ir->op1));
@@ -1000,22 +997,26 @@ static ARMIns asm_fxstoreins(IRIns *ir)
 
 static void asm_fload(ASMState *as, IRIns *ir)
 {
-  Reg dest = ra_dest(as, ir, RSET_GPR);
-  Reg idx = ra_alloc1(as, ir->op1, RSET_GPR);
-  ARMIns ai = asm_fxloadins(ir);
-  int32_t ofs;
-  if (ir->op2 == IRFL_TAB_ARRAY) {
-    ofs = asm_fuseabase(as, ir->op1);
-    if (ofs) {  /* Turn the t->array load into an add for colocated arrays. */
-      emit_dn(as, ARMI_ADD|ARMI_K12|ofs, dest, idx);
-      return;
+  if (ir->op1 == REF_NIL) {
+    lua_assert(!ra_used(ir));  /* We can end up here if DCE is turned off. */
+  } else {
+    Reg dest = ra_dest(as, ir, RSET_GPR);
+    Reg idx = ra_alloc1(as, ir->op1, RSET_GPR);
+    ARMIns ai = asm_fxloadins(ir);
+    int32_t ofs;
+    if (ir->op2 == IRFL_TAB_ARRAY) {
+      ofs = asm_fuseabase(as, ir->op1);
+      if (ofs) {  /* Turn the t->array load into an add for colocated arrays. */
+	emit_dn(as, ARMI_ADD|ARMI_K12|ofs, dest, idx);
+	return;
+      }
     }
+    ofs = field_ofs[ir->op2];
+    if ((ai & 0x04000000))
+      emit_lso(as, ai, dest, idx, ofs);
+    else
+      emit_lsox(as, ai, dest, idx, ofs);
   }
-  ofs = field_ofs[ir->op2];
-  if ((ai & 0x04000000))
-    emit_lso(as, ai, dest, idx, ofs);
-  else
-    emit_lsox(as, ai, dest, idx, ofs);
 }
 
 static void asm_fstore(ASMState *as, IRIns *ir)
@@ -1372,8 +1373,6 @@ static void asm_fpmath(ASMState *as, IRIns *ir)
   else
     asm_callid(as, ir, IRCALL_lj_vm_floor + ir->op2);
 }
-#else
-#define asm_fpmath(as, ir)	lua_assert(0)
 #endif
 
 static int asm_swapops(ASMState *as, IRRef lref, IRRef rref)
@@ -1492,13 +1491,7 @@ static void asm_mul(ASMState *as, IRIns *ir)
 #define asm_subov(as, ir)	asm_sub(as, ir)
 #define asm_mulov(as, ir)	asm_mul(as, ir)
 
-#if LJ_SOFTFP
-#define asm_div(as, ir)		lua_assert(0)
-#define asm_pow(as, ir)		lua_assert(0)
-#define asm_abs(as, ir)		lua_assert(0)
-#define asm_atan2(as, ir)	lua_assert(0)
-#define asm_ldexp(as, ir)	lua_assert(0)
-#else
+#if !LJ_SOFTFP
 #define asm_div(as, ir)		asm_fparith(as, ir, ARMI_VDIV_D)
 #define asm_pow(as, ir)		asm_callid(as, ir, IRCALL_lj_vm_powi)
 #define asm_abs(as, ir)		asm_fpunary(as, ir, ARMI_VABS_D)
@@ -1742,7 +1735,7 @@ static void asm_intcomp(ASMState *as, IRIns *ir)
   int cmpprev0 = 0;
   lua_assert(irt_isint(ir->t) || irt_isu32(ir->t) || irt_isaddr(ir->t));
   if (asm_swapops(as, lref, rref)) {
-    Reg tmp = lref; lref = rref; rref = tmp;
+    IRRef tmp = lref; lref = rref; rref = tmp;
     if (cc >= CC_GE) cc ^= 7;  /* LT <-> GT, LE <-> GE */
     else if (cc > CC_NE) cc ^= 11;  /* LO <-> HI, LS <-> HS */
   }
