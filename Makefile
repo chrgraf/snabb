@@ -19,6 +19,7 @@ all: $(LUAJIT) $(SYSCALL) $(PFLUA)
 	@cp -p lib/ljsyscall/syscall/*.lua src/syscall/
 	@cp -p  lib/ljsyscall/syscall/linux/*.lua src/syscall/linux/
 	@cp -pr lib/ljsyscall/syscall/linux/x64   src/syscall/linux/
+	@cp -pr lib/ljsyscall/syscall/linux/arm64 src/syscall/linux/
 	@cp -pr lib/ljsyscall/syscall/shared      src/syscall/
 	cd src && $(MAKE)
 
