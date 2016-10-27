@@ -2,6 +2,7 @@ module(..., package.seeall)
 
 local S = require("syscall")
 local pci = require("lib.hardware.pci")
+local ffi = require("ffi")
 
 local bound_cpu
 local bound_numa_node
@@ -102,7 +103,11 @@ function bind_to_numa_node (node)
    if not node then return unbind_numa_node() end
    assert(not bound_numa_node, "already bound")
 
-   assert(S.set_mempolicy('bind', node))
+   local mem_policy = S.set_mempolicy('bind', node)
+   if ffi.errno() ==  S.c.E.NOSYS then
+      return -- Syscall not implemented, do nothing
+   end
+   assert(mem_policy)
 
    -- Migrate any pages that might have the wrong affinity.
    local from_mask = assert(S.get_mempolicy(nil, nil, nil, 'mems_allowed')).mask
@@ -120,6 +125,10 @@ end
 function selftest ()
    print('selftest: numa')
    bind_to_cpu(0)
+   if ffi.errno() ==  S.c.E.NOSYS then
+      print("Skipping NUMA test, no NUMA support")
+      os.exit(43) -- skip the test
+   end
    assert(bound_cpu == 0)
    assert(bound_numa_node == 0)
    assert(S.getcpu().cpu == 0)
