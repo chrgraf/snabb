@@ -25,7 +25,7 @@ ABIVER=  5.1
 # Change the installation path as needed. This automatically adjusts
 # the paths in src/luaconf.h, too. Note: PREFIX must be an absolute path!
 #
-export PREFIX= /home/cbaylis/work-local/luajit/install
+export PREFIX= /usr/local
 export MULTILIB= lib
 ##############################################################################
 
@@ -163,15 +163,3 @@ clean:
 .PHONY: all install amalg clean
 
 ##############################################################################
-
-LUAJIT?=$(shell pwd)/src/luajit
-define RUN_LUA_TEST
-$(MAKE) LUAJIT="$(LUA_EXECUTOR) $(LUAJIT)" LUA_PATH="$(shell pwd)/src/?.lua;;" -C test $@
-endef
-
-# Find all tests inside the test folder.
-LUA_TEST_SRC=$(wildcard test/*.lua)
-ALL_LUA_TEST=$(LUA_TEST_SRC:test/%.lua=test_%)
-
-$(ALL_LUA_TEST) test skipped: all
-	$(call RUN_LUA_TEST)

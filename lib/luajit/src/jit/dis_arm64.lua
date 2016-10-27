@@ -87,6 +87,17 @@ local map_bitf = { -- Bitfield
   }
 }
 
+local map_datai = { -- Data processing - immediate
+  shift = 23, mask = 7,
+  [0] = map_adr, map_adr, map_addsubi, false,
+  map_logi, map_movwi, map_bitf,
+  {
+    shift = 15, mask = 0x1c0c1,
+    [0] = "extr|rorDNM4w", [0x10080] = "extr|rorDNM4x",
+    [0x10081] = "extr|rorDNM4x"
+  }
+}
+
 local map_logsr = { -- Logical (shifted register)
   shift = 31, mask = 1,
   [0] = {
@@ -100,8 +111,8 @@ local map_logsr = { -- Logical (shifted register)
       },
       {
         shift = 21, mask = 7,
-        [0] = "orr|movDN0MSg", "orn|mvnDN0MSg", "orr|movDN0MSg", "orn|mvnDN0MSg",
-        "orr|movDN0MSg", "orn|mvnDN0MSg", "orr|movDN0Mg", "orn|mvnDN0Mg"
+        [0] = "orr|movDN0MSg", "orn|mvnDN0MSg", "orr|movDN0MSg",
+	      "orn|mvnDN0MSg", "orr|movDN0MSg", "orn|mvnDN0MSg", "orr|movDN0Mg","orn|mvnDN0Mg"
       },
       {
         shift = 21, mask = 7,
@@ -153,7 +164,8 @@ local map_assh = {
       },
       {
         shift = 22, mask = 3,
-        [0] = "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMg"
+        [0] = "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMSg",
+	      "adds|cmnD0NMg"
       },
       {
         shift = 22, mask = 3,
@@ -161,8 +173,8 @@ local map_assh = {
       },
       {
         shift = 22, mask = 3,
-        [0] = "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg",
-        "subs|cmp|negsD0N0Mzg"
+        [0] = "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg",
+	      "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0Mzg"
       },
     },
     false -- unallocated
@@ -175,7 +187,8 @@ local map_assh = {
     },
     {
       shift = 22, mask = 3,
-      [0] = "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMg"
+      [0] = "adds|cmnD0NMSg", "adds|cmnD0NMSg", "adds|cmnD0NMSg",
+            "adds|cmnD0NMg"
     },
     {
       shift = 22, mask = 3,
@@ -183,8 +196,8 @@ local map_assh = {
     },
     {
       shift = 22, mask = 3,
-      [0] = "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg",
-      "subs|cmp|negsD0N0Mzg"
+      [0] = "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0MzSg",
+            "subs|cmp|negsD0N0MzSg", "subs|cmp|negsD0N0Mzg"
     }
   }
 }
@@ -246,29 +259,27 @@ local map_data1s = { -- Data processing (1 source)
     shift = 31, mask = 1,
     [0] = {
       shift = 10, mask = 0x7ff,
-      [0] = "rbitDNg", "rev16DNg", "revDNw",
-      false, "clzDNg", "clsDNg"
+      [0] = "rbitDNg", "rev16DNg", "revDNw", false, "clzDNg", "clsDNg"
     },
     {
       shift = 10, mask = 0x7ff,
-      [0] = "rbitDNg", "rev16DNg", "rev32DNx",
-      "revDNx", "clzDNg", "clsDNg"
+      [0] = "rbitDNg", "rev16DNg", "rev32DNx", "revDNx", "clzDNg", "clsDNg"
     }
   }
 }
 
-local map_data2s = { -- Data processing (2 source)
+local map_data2s = { -- Data processing (2 sources)
   shift = 29, mask = 1,
   [0] = {
     shift = 10, mask = 63,
     false, "udivDNMg", "sdivDNMg", false, false, false, false, "lslDNMg",
-    "lsrDNMg", "asrDNMg", "rorDNMg"  -- TODO: crc32*
+    "lsrDNMg", "asrDNMg", "rorDNMg"
   }
 }
 
-local map_data3s = { -- Data processing (3 source)
+local map_data3s = { -- Data processing (3 sources)
   shift = 29, mask = 7,
-  [0] = { -- TODO: Can this be merged with 64-bit?
+  [0] = {
     shift = 21, mask = 7,
     [0] = {
       shift = 15, mask = 1,
@@ -290,18 +301,6 @@ local map_data3s = { -- Data processing (3 source)
   }
 }
 
-
-local map_datai = { -- Data processing - immediate
-  shift = 23, mask = 7,
-  [0] = map_adr, map_adr, map_addsubi, false,
-  map_logi, map_movwi, map_bitf,
-  {
-    shift = 15, mask = 0x1c0c1,
-    [0] = "extr|rorDNM4w", [0x10080] = "extr|rorDNM4x",
-    [0x10081] = "extr|rorDNM4x"
-  }
-}
-
 local map_datar = { -- Data processing - register
   shift = 28, mask = 1,
   [0] = {
@@ -314,14 +313,13 @@ local map_datar = { -- Data processing - register
   },
   {
     shift = 21, mask = 15,
-    [0] = map_addsubc, false, map_ccomp, false,
-    map_csel, false,
+    [0] = map_addsubc, false, map_ccomp, false, map_csel, false,
     {
       shift = 30, mask = 1,
       [0] = map_data2s, map_data1s
     },
-    false, map_data3s, map_data3s, map_data3s, map_data3s,
-    map_data3s, map_data3s, map_data3s, map_data3s
+    false, map_data3s, map_data3s, map_data3s, map_data3s, map_data3s,
+    map_data3s, map_data3s, map_data3s
   }
 }
 
@@ -410,9 +408,13 @@ local map_lsriro = {
       shift = 26, mask = 1,
       [0] = {
         shift = 30, mask = 3,
+        [1] = {
+          shift = 22, mask = 3,
+          [0] = "strhDwO", "ldrhDwO", "ldrshDwO", "ldrshDxO"
+        },
         [2] = {
           shift = 22, mask = 3,
-          [0] = "strDwO", "ldrDwO"
+          [0] = "strDwO", "ldrDwO", "ldrswDxO"
         },
         [3] = {
           shift = 22, mask = 3,
@@ -623,7 +625,7 @@ local map_datafp = { -- Data processing - SIMD and FP
             }
           }
         },
-        { -- Floating-point data-processing (2 source)
+        { -- Floating-point data-processing (2 sources)
           shift = 31, mask = 1,
           [0] = {
             shift = 23, mask = 1,
@@ -644,7 +646,7 @@ local map_datafp = { -- Data processing - SIMD and FP
         }
       }
     },
-    { -- Floating-point data-processing (3 source)
+    { -- Floating-point data-processing (3 sources)
       shift = 31, mask = 1,
       [0] = {
         shift = 15, mask = 1,
@@ -674,9 +676,8 @@ local map_br = { -- Branches, exception generating and system instructions
       shift = 4, mask = 1,
       [0] = {
         shift = 0, mask = 15,
-        [0] = "beqB", "bneB", "bhsB", "bloB", "bmiB",
-        "bplB", "bvsB", "bvcB", "bhiB", "blsB", "bgeB",
-        "bltB", "bgtB", "bleB", "balB"
+        [0] = "beqB", "bneB", "bhsB", "bloB", "bmiB", "bplB", "bvsB", "bvcB",
+	"bhiB", "blsB", "bgeB", "bltB", "bgtB", "bleB", "balB"
       }
     }
   }, false, "blB",
@@ -702,15 +703,11 @@ local map_br = { -- Branches, exception generating and system instructions
   }
 }
 
-
 local map_init = {
   shift = 25, mask = 15,
-  [0] = false, false, false, false,
-  map_ls, map_datar, map_ls, map_datafp,
-  map_datai, map_datai, map_br, map_br,
-  map_ls, map_datar, map_ls, map_datafp
+  [0] = false, false, false, false, map_ls, map_datar, map_ls, map_datafp,
+  map_datai, map_datai, map_br, map_br, map_ls, map_datar, map_ls, map_datafp
 }
-
 
 ------------------------------------------------------------------------------
 
@@ -742,7 +739,6 @@ local map_extend = {
 
 ------------------------------------------------------------------------------
 
-
 -- Output a nicely formatted line with an opcode and operands.
 local function putop(ctx, text, operands)
   local pos = ctx.pos
@@ -751,8 +747,6 @@ local function putop(ctx, text, operands)
     local sym = ctx.symtab[ctx.rel]
     if sym then
       extra = "\t->"..sym
-    elseif band(ctx.op, 0x0e000000) ~= 0x0a000000 then
-      extra = "\t; 0x"..tohex(ctx.rel)
     end
   end
   if ctx.hexdump > 0 then
@@ -809,10 +803,10 @@ local function parse_imm13(op)
     imm = imm:rep(64/size)
     immhi = tonumber(sub(imm, 1, 32), 2)
     immlo = tonumber(sub(imm, 33, 64), 2)
-    imm = "#0x"..tohex(immhi)..tohex(immlo)
+    imm = tohex(immhi)..tohex(immlo)
   else
     imm = imm:rep(32/size)
-    imm = "#0x"..tohex(tonumber(imm, 2))
+    imm = tohex(tonumber(imm, 2))
   end
   return imm
 end
@@ -985,8 +979,20 @@ local function disass_ins(ctx)
       else
         rm = map_regs.x[band(rshift(op, 16), 31)]
       end
-      -- TODO: complete this case
-      x = "["..rn..", "..rm.."]"
+      x = "["..rn..", "..rm
+      local opt = band(rshift(op, 13), 7)
+      local s = band(rshift(op, 12), 1)
+      local sz = band(rshift(op, 30), 3)
+      -- extension to be applied
+      if opt == 3 then
+       if s == 0 then x = nil
+       else x = x..", lsl #"..sz.."]" end
+      elseif opt == 2 or opt == 6 or opt == 7 then
+        if s == 0 then x = x..", "..map_extend[opt].."]"
+        else x = x..", "..map_extend[opt].." #"..sz.."]" end
+      else
+        x = x.."]"
+      end
     elseif p == "P" then
       local rn, sz = map_regs.x[band(rshift(op, 5), 31)]
       local imm7 = arshift(lshift(op, 10), 25)
@@ -1012,7 +1018,7 @@ local function disass_ins(ctx)
       local shf = band(rshift(op, 22), 3)
       local imm12 = band(rshift(op, 10), 0x0fff)
       local n = #operands
-      local rn, rd = band(rshift(op, 5), 31), band(op, 31)  -- TODO: repeated extract reg
+      local rn, rd = band(rshift(op, 5), 31), band(op, 31)
       if altname == "mov" and shf == 0 and imm12 == 0 and (rn == 31 or rd == 31) then
         name = altname
         x = nil
@@ -1022,7 +1028,7 @@ local function disass_ins(ctx)
         x = imm12..", lsl #12"
       end
     elseif p == "i" then
-      x = parse_imm13(op)
+      x = "#0x"..string.format("%x",tonumber(parse_imm13(op),16))
     elseif p == "1" then
       immr = band(rshift(op, 16), 63)
       x = immr

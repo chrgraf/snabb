@@ -183,8 +183,6 @@
 |    ins_NEXT
 |  .endmacro
 |.endif
-|// Avoid register name substitution for field name.
-#define field_pc        pc
 |
 |// Call decode and dispatch.
 |.macro ins_callt
@@ -238,9 +236,7 @@
 |.macro mov_false, reg; movn reg, #0x8000, lsl #32; .endmacro
 |.macro mov_true, reg; movn reg, #0x0001, lsl #48; .endmacro
 |
-#define GL_J(field)	(GG_OFS(J) - GG_OFS(g) + (int)offsetof(jit_State, field))
-#define DISPATCH_GL(field)      (GG_DISP2G + (int)offsetof(global_State, field))
-#define DISPATCH_J(field)       (GG_DISP2J + (int)offsetof(jit_State, field))
+#define GL_J(field)	(GG_G2J + (int)offsetof(jit_State, field))
 |
 #define PC2PROTO(field)  ((int)offsetof(GCproto, field)-(int)sizeof(GCproto))
 |
@@ -1742,17 +1738,17 @@ static void build_subroutines(BuildCtx *ctx)
   |
   |->vm_record:				// Dispatch target for recording phase.
   |.if JIT
-  |  ldrb CARG1w, [GL, #offsetof(global_State, hookmask)]
-  |  tst CARG1, #HOOK_VMEVENT           // No recording while in vmevent.
+  |  ldrb CARG1w, GL->hookmask
+  |  tst CARG1, #HOOK_VMEVENT		// No recording while in vmevent.
   |  bne >5
   |  // Decrement the hookcount for consistency, but always do the call.
-  |   ldr CARG2, [GL, #offsetof(global_State, hookcount)]
+  |   ldr CARG2w, GL->hookcount
   |  tst CARG1, #HOOK_ACTIVE
   |  bne >1
-  |   sub CARG2, CARG2, #1
+  |   sub CARG2w, CARG2w, #1
   |  tst CARG1, #LUA_MASKLINE|LUA_MASKCOUNT
   |  beq >1
-  |   str CARG2, [GL, #offsetof(global_State, hookcount)]
+  |   str CARG2w, GL->hookcount
   |  b >1
   |.endif
   |
@@ -1801,14 +1797,14 @@ static void build_subroutines(BuildCtx *ctx)
   |   add CARG1, GL, #GG_G2DISP+GG_DISP2J
   |  and LFUNC:CARG3, CARG3, #LJ_GCVMASK
   |   str PC, SAVE_PC
-  |  ldr CARG3, LFUNC:CARG3->field_pc
+  |  ldr CARG3, LFUNC:CARG3->pc
   |   mov CARG2, PC
   |   str L, [GL, #GL_J(L)]
   |  ldrb CARG3w, [CARG3, #PC2PROTO(framesize)]
   |   str BASE, L->base
   |  add CARG3, BASE, CARG3, lsl #3
   |  str CARG3, L->top
-  |  bl extern lj_trace_hot             // (jit_State *J, const BCIns *pc)
+  |  bl extern lj_trace_hot		// (jit_State *J, const BCIns *pc)
   |  b <3
   |.endif
   |
@@ -1845,9 +1841,9 @@ static void build_subroutines(BuildCtx *ctx)
   |   ldr RB, SAVE_MULTRES
   |  ldr INSw, [PC, #-4]
   |    ldr TRACE:CARG3, [CARG4, #-40]	// Save previous trace.
-  |    and CARG3, CARG3, #LJ_GCVMASK
   |   subs RB, RB, #8
   |  decode_RA RC, INS			// Call base.
+  |    and CARG3, CARG3, #LJ_GCVMASK
   |   beq >2
   |1:  // Move results down.
   |  ldr CARG1, [RA]
@@ -1877,7 +1873,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  mov CARG1, #GL_J(L)
   |  str L, [GL, CARG1]
   |  str BASE, L->base
-  |  add CARG1, GL, #(GG_OFS(J) - GG_OFS(g))
+  |  add CARG1, GL, #GG_G2J
   |  mov CARG2, PC
   |  bl extern lj_dispatch_stitch	// (jit_State *J, const BCIns *pc)
   |  ldr BASE, L->base
@@ -1935,9 +1931,9 @@ static void build_subroutines(BuildCtx *ctx)
   |   stp CARG1, CARG3, [sp, #62*8]	// Store exit pc/sp in RID_LR/RID_SP.
   |  lsl CARG2, CARG2, #38
   |  add CARG1, CARG1, CARG2, asr #36
-  |   ldr CARG2w, [lr, #8]	// Load exit stub group offset.
+  |   ldr CARG2w, [lr]		// Load exit stub group offset.
   |   sub CARG1, CARG1, lr
-  |   sub CARG1, CARG1, #12
+  |   sub CARG1, CARG1, #4
   |  ldr L, GL->cur_L
   |   add CARG1, CARG2, CARG1, lsr #2	// Compute exit number.
   |    ldr BASE, GL->jit_base
@@ -1972,7 +1968,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  and LFUNC:CARG2, CARG2, #LJ_GCVMASK
   |   str RC, SAVE_MULTRES
   |   str BASE, L->base
-  |  ldr CARG2, LFUNC:CARG2->field_pc
+  |  ldr CARG2, LFUNC:CARG2->pc
   |   str xzr, GL->jit_base
   |    mv_vmstate CARG4, INTERP
   |  ldr KBASE, [CARG2, #PC2PROTO(k)]
@@ -2008,7 +2004,7 @@ static void build_subroutines(BuildCtx *ctx)
   |  sub CARG2, BASE, CARG1, lsl #3
   |  ldr LFUNC:CARG3, [CARG2, #-32]
   |  and LFUNC:CARG3, CARG3, #LJ_GCVMASK
-  |  ldr CARG3, LFUNC:CARG3->field_pc
+  |  ldr CARG3, LFUNC:CARG3->pc
   |  ldr KBASE, [CARG3, #PC2PROTO(k)]
   |  b <2
   |
@@ -3681,13 +3677,12 @@ static void build_ins(BuildCtx *ctx, BCOp op, int defop)
   case BC_JLOOP:
     |.if JIT
     |  // RA = base (ignored), RC = traceno
-    |  //add TMP0, GL, #GG_G2DISP // !!!TODO huh? did I put that here? why?
     |  ldr CARG1, [GL, #GL_J(trace)]
     |   mov CARG2, #0  // Traces on ARM don't store the trace number, so use 0.
-    |  ldr TRACE:RC, [CARG1, RC, lsl #3] // !!!TODO w/lsl#2 or x/lsl#3 or other?
+    |  ldr TRACE:RC, [CARG1, RC, lsl #3]
     |   st_vmstate CARG2
     |  ldr RA, TRACE:RC->mcode
-    |   str BASE, [GL, #offsetof(global_State, jit_base)]
+    |   str BASE, GL->jit_base
     |   str L, GL->tmpbuf.L
     |  br RA
     |.endif
@@ -3939,8 +3934,8 @@ static void emit_asm_debug(BuildCtx *ctx)
 	"\t.uleb128 0x1\n"
 	"\t.sleb128 -8\n"
 	"\t.byte 30\n"				/* Return address is in lr. */
-	"\t.uleb128 1\n"                        /* augmentation length */
-	"\t.byte 0x1b\n"                        /* pcrel|sdata4 */
+	"\t.uleb128 1\n"			/* augmentation length */
+	"\t.byte 0x1b\n"			/* pcrel|sdata4 */
 	"\t.byte 0xc\n\t.uleb128 31\n\t.uleb128 0\n"	/* def_cfa sp */
 	"\t.align 3\n"
 	".LECIE2:\n\n");
@@ -3951,7 +3946,7 @@ static void emit_asm_debug(BuildCtx *ctx)
 	"\t.long .LASFDE3-.Lframe2\n"
 	"\t.long lj_vm_ffi_call-.\n"
 	"\t.long %d\n"
-	"\t.uleb128 0\n"                        /* augmentation length */
+	"\t.uleb128 0\n"			/* augmentation length */
 	"\t.byte 0xe\n\t.uleb128 32\n"		/* def_cfa_offset */
 	"\t.byte 0x9d\n\t.uleb128 4\n"		/* offset fp */
 	"\t.byte 0x9e\n\t.uleb128 3\n"		/* offset lr */
