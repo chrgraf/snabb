@@ -82,7 +82,10 @@ uint64_t virtual_to_physical(uintptr_t *ptr)
 void *allocate_huge_page(int size)
 {
   int shmid = -1;
-  uintptr_t physical_address, virtual_address;
+  uintptr_t physical_address;
+#ifdef __x86_64__
+  uintptr_t virtual_address;
+#endif
   void *tmpptr = MAP_FAILED;  // initial kernel assigned virtual address
   void *realptr = MAP_FAILED; // remapped virtual address
   shmid = shmget(IPC_PRIVATE, size, SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
@@ -91,8 +94,12 @@ void *allocate_huge_page(int size)
   if (mlock(tmpptr, size) != 0) { goto fail; }
   physical_address = virtual_to_physical(tmpptr);
   if (physical_address == 0) { goto fail; }
+#ifdef __x86_64__
   virtual_address = physical_address | 0x500000000000ULL;
   realptr = shmat(shmid, (void*)virtual_address, 0);
+#else
+  realptr = shmat(shmid, NULL, 0);
+#endif
   if (realptr == MAP_FAILED) { goto fail; }
   if (mlock(realptr, size) != 0) { goto fail; }
   memset(realptr, 0, size); // zero memory to avoid potential surprises

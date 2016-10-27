@@ -106,6 +106,7 @@ huge_page_bits = math.log(huge_page_size, 2)
 local uint64_t = ffi.typeof("uint64_t")
 function virtual_to_physical (virt_addr)
    local u64 = ffi.cast(uint64_t, virt_addr)
+   if ffi.arch ~= 'x64' then return u64 end
    if bit.band(u64, 0x500000000000ULL) ~= 0x500000000000ULL then
       print("Invalid DMA address: 0x"..bit.tohex(u64,12))
       error("DMA address tag check failed")
